@@ -9,20 +9,21 @@ import java.time.LocalDate;
 
 public record ProjectRequest (
 		
-		@NotBlank(message = "O nome é obrigatório")
+		@NotBlank(message = "The name is required")
 		String name,
 		
-		@NotNull(message = "A data de início é obrigatória")
+		@NotNull(message = "The start date is required")
 		LocalDate startDate,
 		
-		@NotNull(message = "A previsão de término é obrigatória")
+		@NotNull(message = "A completion date is required")
 		LocalDate expectedEndDate,
 		
-		@NotNull @PositiveOrZero(message = "O orçamento deve ser maior ou igual a zero")
+		@NotNull(message = "The budget is mandatory")
+		@PositiveOrZero(message = "The budget must be greater than or equal to zero")
 		BigDecimal budget,
 		
 		String description,
 		
-		@NotNull(message = "O gerente responsável é obrigatório")
+		@NotNull(message = "A manager in charge is required")
 		Long managerId
 ){}
