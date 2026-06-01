@@ -26,8 +26,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -136,11 +135,13 @@ class ProjectControllerTest {
     @DisplayName("GET /projects: Should return 200 OK with pagination and filters")
     void findAll_ShouldReturnOk() throws Exception {
         Page<ProjectResponse> page = new PageImpl<>(List.of(projectResponse));
-        when(projectService.findAll(eq("Test"), eq(ProjectStatus.EM_ANALISE), any(Pageable.class))).thenReturn(page);
+        when(projectService.findAll(eq("Test"), eq(ProjectStatus.EM_ANALISE), eq(1L), eq(RiskLevel.MEDIO_RISCO), any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/projects")
                         .param("name", "Test")
                         .param("status", "EM_ANALISE")
+                        .param("managerId", "1")
+                        .param("riskLevel", "MEDIO_RISCO")
                         .param("page", "0")
                         .param("size", "10"))
                 .andExpect(status().isOk())

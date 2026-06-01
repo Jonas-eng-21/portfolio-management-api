@@ -17,9 +17,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -261,5 +267,20 @@ class ProjectServiceTest {
 
         assertThrows(BusinessRuleException.class, () -> service.recover(projectId));
         verify(repository, never()).save(any(Project.class));
+    }
+
+    @Test
+    @DisplayName("FindAll: Should return paged projects")
+    void findAll_ShouldReturnPagedProjects() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Project> page = new PageImpl<>(List.of(project));
+        when(repository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
+
+        Page<ProjectResponse> result = service.findAll("Test", ProjectStatus.EM_ANALISE, 1L, RiskLevel.BAIXO_RISCO, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals(project.getName(), result.getContent().get(0).name());
+        verify(repository, times(1)).findAll(any(Specification.class), any(Pageable.class));
     }
 }
