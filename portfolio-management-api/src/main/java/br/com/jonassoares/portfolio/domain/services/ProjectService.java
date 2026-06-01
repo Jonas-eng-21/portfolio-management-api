@@ -4,9 +4,11 @@ import br.com.jonassoares.portfolio.api.dtos.ProjectRequest;
 import br.com.jonassoares.portfolio.api.dtos.ProjectResponse;
 import br.com.jonassoares.portfolio.domain.entities.Project;
 import br.com.jonassoares.portfolio.domain.enums.ProjectStatus;
+import br.com.jonassoares.portfolio.domain.enums.RiskLevel;
 import br.com.jonassoares.portfolio.domain.exceptions.BusinessRuleException;
 import br.com.jonassoares.portfolio.domain.exceptions.ResourceNotFoundException;
 import br.com.jonassoares.portfolio.domain.repositories.ProjectRepository;
+import br.com.jonassoares.portfolio.domain.specifications.ProjectSpecification;
 import br.com.jonassoares.portfolio.domain.validators.ProjectDeletionValidator;
 import br.com.jonassoares.portfolio.domain.validators.ProjectStatusTransitionValidator;
 import org.springframework.data.domain.Page;
@@ -57,8 +59,9 @@ public class ProjectService {
 	}
 	
 	@Transactional(readOnly = true)
-	public Page<ProjectResponse> findAll(String name, ProjectStatus status, Pageable pageable) {
-		return repository.findWithFilters(name, status, pageable).map(this::mapToResponse);
+	public Page<ProjectResponse> findAll(String name, ProjectStatus status, Long managerId, RiskLevel riskLevel, Pageable pageable) {
+		return repository.findAll(ProjectSpecification.withFilters(name, status, managerId, riskLevel), pageable)
+				.map(this::mapToResponse);
 	}
 	
 	@Transactional(readOnly = true)

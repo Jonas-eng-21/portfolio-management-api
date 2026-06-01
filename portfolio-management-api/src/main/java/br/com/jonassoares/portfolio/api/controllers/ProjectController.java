@@ -4,6 +4,7 @@ import br.com.jonassoares.portfolio.api.dtos.ProjectRequest;
 import br.com.jonassoares.portfolio.api.dtos.ProjectResponse;
 import br.com.jonassoares.portfolio.api.dtos.ProjectStatusRequest;
 import br.com.jonassoares.portfolio.domain.enums.ProjectStatus;
+import br.com.jonassoares.portfolio.domain.enums.RiskLevel;
 import br.com.jonassoares.portfolio.domain.services.ProjectService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -49,9 +50,11 @@ public class ProjectController {
 	public ResponseEntity<Page<ProjectResponse>> findAll(
 			@RequestParam(required = false) String name,
 			@RequestParam(required = false) ProjectStatus status,
+			@RequestParam(required = false) Long managerId,
+			@RequestParam(required = false) RiskLevel riskLevel,
 			@PageableDefault(size = 10, sort = "name") Pageable pageable) {
 		
-		Page<ProjectResponse> responses = projectService.findAll(name, status, pageable);
+		Page<ProjectResponse> responses = projectService.findAll(name, status, managerId, riskLevel, pageable);
 		return ResponseEntity.ok(responses);
 	}
 	
