@@ -7,6 +7,8 @@ import br.com.jonassoares.portfolio.domain.enums.ProjectStatus;
 import br.com.jonassoares.portfolio.domain.exceptions.BusinessRuleException;
 import br.com.jonassoares.portfolio.domain.exceptions.ResourceNotFoundException;
 import br.com.jonassoares.portfolio.domain.repositories.ProjectRepository;
+import br.com.jonassoares.portfolio.domain.validators.ProjectDeletionValidator;
+import br.com.jonassoares.portfolio.domain.validators.ProjectStatusTransitionValidator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -18,14 +20,22 @@ import java.util.UUID;
 public class ProjectService {
 	
 	private final ProjectRepository repository;
+	private final RiskCalculatorService riskCalculatorService;
+	private final ProjectStatusTransitionValidator statusTransitionValidator;
+	private final ProjectDeletionValidator deletionValidator;
 	
-	public ProjectService(ProjectRepository repository) {
+	public ProjectService(ProjectRepository repository,
+	                      RiskCalculatorService riskCalculatorService,
+	                      ProjectStatusTransitionValidator statusTransitionValidator,
+	                      ProjectDeletionValidator deletionValidator) {
 		this.repository = repository;
+		this.riskCalculatorService = riskCalculatorService;
+		this.statusTransitionValidator = statusTransitionValidator;
+		this.deletionValidator = deletionValidator;
 	}
 	
 	@Transactional
 	public ProjectResponse create(ProjectRequest request) {
-		
 		if (request.expectedEndDate() != null && request.startDate() != null
 				&& request.expectedEndDate().isBefore(request.startDate())) {
 			throw new BusinessRuleException("The expected end date cannot be earlier than the start date.");
@@ -38,75 +48,32 @@ public class ProjectService {
 		project.setBudget(request.budget());
 		project.setDescription(request.description());
 		project.setManagerId(request.managerId());
-		
 		project.setStatus(ProjectStatus.EM_ANALISE);
 		
-		Project savedProject = repository.save(project);
+		project.setRiskLevel(riskCalculatorService.calculateRisk(request.budget(), request.startDate(), request.expectedEndDate()));
 		
-		return new ProjectResponse(
-				savedProject.getId(),
-				savedProject.getName(),
-				savedProject.getStartDate(),
-				savedProject.getExpectedEndDate(),
-				savedProject.getActualEndDate(),
-				savedProject.getBudget(),
-				savedProject.getDescription(),
-				savedProject.getManagerId(),
-				savedProject.getStatus(),
-				savedProject.getRiskLevel()
-		);
+		Project savedProject = repository.save(project);
+		return mapToResponse(savedProject);
 	}
 	
 	@Transactional(readOnly = true)
 	public Page<ProjectResponse> findAll(String name, ProjectStatus status, Pageable pageable) {
-		Page<Project> projectsPage = repository.findWithFilters(name, status, pageable);
-		
-		return projectsPage.map(project -> new ProjectResponse(
-				project.getId(),
-				project.getName(),
-				project.getStartDate(),
-				project.getExpectedEndDate(),
-				project.getActualEndDate(),
-				project.getBudget(),
-				project.getDescription(),
-				project.getManagerId(),
-				project.getStatus(),
-				project.getRiskLevel()
-		));
+		return repository.findWithFilters(name, status, pageable).map(this::mapToResponse);
 	}
 	
 	@Transactional(readOnly = true)
 	public ProjectResponse findById(UUID id) {
-		Project project = repository.findById(id)
-				.orElseThrow(() -> new ResourceNotFoundException("Project not found with ID: " + id));
-		
-		if (project.isDeleted()) {
-			throw new ResourceNotFoundException("Project not found with ID: " + id);
-		}
-		
-		return new ProjectResponse(
-				project.getId(),
-				project.getName(),
-				project.getStartDate(),
-				project.getExpectedEndDate(),
-				project.getActualEndDate(),
-				project.getBudget(),
-				project.getDescription(),
-				project.getManagerId(),
-				project.getStatus(),
-				project.getRiskLevel()
-		);
+		Project project = getProjectOrThrow(id);
+		return mapToResponse(project);
 	}
 	
 	@Transactional
 	public ProjectResponse update(UUID id, ProjectRequest request) {
-		
 		if (request.expectedEndDate().isBefore(request.startDate())) {
 			throw new BusinessRuleException("The expected end date cannot be earlier than the start date.");
 		}
 		
-		Project project = repository.findById(id)
-				.orElseThrow(() -> new ResourceNotFoundException("Project not found with ID: " + id));
+		Project project = getProjectOrThrow(id);
 		
 		project.setName(request.name());
 		project.setStartDate(request.startDate());
@@ -115,77 +82,26 @@ public class ProjectService {
 		project.setDescription(request.description());
 		project.setManagerId(request.managerId());
 		
-		project = repository.save(project);
+		project.setRiskLevel(riskCalculatorService.calculateRisk(request.budget(), request.startDate(), request.expectedEndDate()));
 		
-		return new ProjectResponse(
-				project.getId(),
-				project.getName(),
-				project.getStartDate(),
-				project.getExpectedEndDate(),
-				project.getActualEndDate(),
-				project.getBudget(),
-				project.getDescription(),
-				project.getManagerId(),
-				project.getStatus(),
-				project.getRiskLevel()
-		);
+		return mapToResponse(repository.save(project));
 	}
 	
 	@Transactional
 	public ProjectResponse updateStatus(UUID id, ProjectStatus newStatus) {
-		Project project = repository.findById(id)
-				.orElseThrow(() -> new ResourceNotFoundException("Project not found with ID: " + id));
+		Project project = getProjectOrThrow(id);
 		
-		if (!isValidTransition(project.getStatus(), newStatus)) {
-			throw new BusinessRuleException("Invalid status transition from " + project.getStatus() + " to " + newStatus + ".");
-		}
+		statusTransitionValidator.validate(project.getStatus(), newStatus);
 		
 		project.setStatus(newStatus);
-		project = repository.save(project);
-		
-		return new ProjectResponse(
-				project.getId(),
-				project.getName(),
-				project.getStartDate(),
-				project.getExpectedEndDate(),
-				project.getActualEndDate(),
-				project.getBudget(),
-				project.getDescription(),
-				project.getManagerId(),
-				project.getStatus(),
-				project.getRiskLevel()
-		);
-	}
-	
-	private boolean isValidTransition(ProjectStatus current, ProjectStatus next) {
-
-		if (current == next) return true;
-		
-		return switch (current) {
-			case EM_ANALISE -> next == ProjectStatus.ANALISE_REALIZADA || next == ProjectStatus.CANCELADO;
-			case ANALISE_REALIZADA -> next == ProjectStatus.ANALISE_APROVADA || next == ProjectStatus.CANCELADO;
-			case ANALISE_APROVADA -> next == ProjectStatus.PLANEJADO || next == ProjectStatus.CANCELADO;
-			case PLANEJADO -> next == ProjectStatus.INICIADO || next == ProjectStatus.CANCELADO;
-			case INICIADO -> next == ProjectStatus.EM_ANDAMENTO || next == ProjectStatus.CANCELADO;
-			case EM_ANDAMENTO -> next == ProjectStatus.ENCERRADO || next == ProjectStatus.CANCELADO;
-			case ENCERRADO, CANCELADO -> false;
-		};
+		return mapToResponse(repository.save(project));
 	}
 	
 	@Transactional
 	public void delete(UUID id) {
-		Project project = repository.findById(id)
-				.orElseThrow(() -> new ResourceNotFoundException("Project not found with ID: " + id));
+		Project project = getProjectOrThrow(id);
 		
-		if (project.isDeleted()) {
-			throw new BusinessRuleException("This project is already deleted.");
-		}
-		
-		if (project.getStatus() == ProjectStatus.INICIADO ||
-				project.getStatus() == ProjectStatus.EM_ANDAMENTO ||
-				project.getStatus() == ProjectStatus.ENCERRADO) {
-			throw new BusinessRuleException("Deletion is blocked. You cannot delete a project with status: " + project.getStatus() + ".");
-		}
+		deletionValidator.validate(project.getStatus());
 		
 		project.setDeleted(true);
 		repository.save(project);
@@ -202,6 +118,24 @@ public class ProjectService {
 		
 		project.setDeleted(false);
 		repository.save(project);
+	}
+	
+	private Project getProjectOrThrow(UUID id) {
+		Project project = repository.findById(id)
+				.orElseThrow(() -> new ResourceNotFoundException("Project not found with ID: " + id));
+		if (project.isDeleted()) {
+			throw new ResourceNotFoundException("Project not found with ID: " + id);
+		}
+		return project;
+	}
+	
+	private ProjectResponse mapToResponse(Project project) {
+		return new ProjectResponse(
+				project.getId(), project.getName(), project.getStartDate(),
+				project.getExpectedEndDate(), project.getActualEndDate(),
+				project.getBudget(), project.getDescription(), project.getManagerId(),
+				project.getStatus(), project.getRiskLevel()
+		);
 	}
 	
 }

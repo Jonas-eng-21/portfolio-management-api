@@ -9,7 +9,6 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Entity
@@ -51,24 +50,7 @@ public class Project {
 	@Column(nullable = false)
 	private ProjectStatus status;
 	
-	@Transient
-	public RiskLevel getRiskLevel() {
-		if (budget == null || startDate == null || expectedEndDate == null) {
-			return RiskLevel.BAIXO_RISCO;
-		}
-		
-		long monthsDuration = ChronoUnit.MONTHS.between(startDate, expectedEndDate);
-		boolean isHighBudget = budget.compareTo(new BigDecimal("500000")) > 0;
-		boolean isMediumBudget = budget.compareTo(new BigDecimal("100000")) > 0;
-		
-		if (isHighBudget || monthsDuration > 6) {
-			return RiskLevel.ALTO_RISCO;
-		}
-		
-		if (isMediumBudget || (monthsDuration >= 3 && monthsDuration <= 6)) {
-			return RiskLevel.MEDIO_RISCO;
-		}
-		
-		return RiskLevel.BAIXO_RISCO;
-	}
+	@Enumerated(EnumType.STRING)
+	@Column(name = "risk_level", nullable = false)
+	private RiskLevel riskLevel;
 }
