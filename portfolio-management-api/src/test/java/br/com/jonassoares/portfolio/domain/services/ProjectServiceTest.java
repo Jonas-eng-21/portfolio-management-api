@@ -4,9 +4,12 @@ import br.com.jonassoares.portfolio.api.dtos.ProjectRequest;
 import br.com.jonassoares.portfolio.api.dtos.ProjectResponse;
 import br.com.jonassoares.portfolio.domain.entities.Project;
 import br.com.jonassoares.portfolio.domain.enums.ProjectStatus;
+import br.com.jonassoares.portfolio.domain.enums.RiskLevel;
 import br.com.jonassoares.portfolio.domain.exceptions.BusinessRuleException;
 import br.com.jonassoares.portfolio.domain.exceptions.ResourceNotFoundException;
 import br.com.jonassoares.portfolio.domain.repositories.ProjectRepository;
+import br.com.jonassoares.portfolio.domain.validators.ProjectDeletionValidator;
+import br.com.jonassoares.portfolio.domain.validators.ProjectStatusTransitionValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,6 +33,15 @@ class ProjectServiceTest {
     @Mock
     private ProjectRepository repository;
 
+    @Mock
+    private RiskCalculatorService riskCalculatorService;
+
+    @Mock
+    private ProjectStatusTransitionValidator statusTransitionValidator;
+
+    @Mock
+    private ProjectDeletionValidator deletionValidator;
+
     @InjectMocks
     private ProjectService service;
 
@@ -47,6 +59,7 @@ class ProjectServiceTest {
         project.setExpectedEndDate(LocalDate.now().plusMonths(5));
         project.setBudget(new BigDecimal("200000"));
         project.setStatus(ProjectStatus.EM_ANALISE);
+        project.setRiskLevel(RiskLevel.BAIXO_RISCO);
         project.setDeleted(false);
 
         projectRequest = new ProjectRequest(
@@ -62,12 +75,15 @@ class ProjectServiceTest {
     @Test
     @DisplayName("Create: Should create project with status EM_ANALISE")
     void create_ShouldCreateProjectWithDefaultStatus() {
+        when(riskCalculatorService.calculateRisk(any(), any(), any())).thenReturn(RiskLevel.BAIXO_RISCO);
         when(repository.save(any(Project.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ProjectResponse response = service.create(projectRequest);
 
         assertNotNull(response);
         assertEquals(ProjectStatus.EM_ANALISE, response.status());
+        assertEquals(RiskLevel.BAIXO_RISCO, response.riskLevel());
+        verify(riskCalculatorService, times(1)).calculateRisk(any(), any(), any());
         verify(repository, times(1)).save(any(Project.class));
     }
 
@@ -119,12 +135,14 @@ class ProjectServiceTest {
     @DisplayName("Update: Should update project successfully")
     void update_ShouldUpdateProjectSuccessfully() {
         when(repository.findById(projectId)).thenReturn(Optional.of(project));
+        when(riskCalculatorService.calculateRisk(any(), any(), any())).thenReturn(RiskLevel.BAIXO_RISCO);
         when(repository.save(any(Project.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ProjectResponse response = service.update(projectId, projectRequest);
 
         assertNotNull(response);
         assertEquals(projectRequest.name(), response.name());
+        verify(riskCalculatorService, times(1)).calculateRisk(any(), any(), any());
         verify(repository, times(1)).save(any(Project.class));
     }
 
@@ -149,11 +167,13 @@ class ProjectServiceTest {
     void updateStatus_ShouldUpdateOnValidTransition() {
         project.setStatus(ProjectStatus.EM_ANALISE);
         when(repository.findById(projectId)).thenReturn(Optional.of(project));
+        doNothing().when(statusTransitionValidator).validate(any(), any());
         when(repository.save(any(Project.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ProjectResponse response = service.updateStatus(projectId, ProjectStatus.ANALISE_REALIZADA);
 
         assertEquals(ProjectStatus.ANALISE_REALIZADA, response.status());
+        verify(statusTransitionValidator, times(1)).validate(any(), any());
         verify(repository, times(1)).save(any(Project.class));
     }
 
@@ -162,11 +182,13 @@ class ProjectServiceTest {
     void updateStatus_ShouldSucceedWhenSameStatus() {
         project.setStatus(ProjectStatus.EM_ANALISE);
         when(repository.findById(projectId)).thenReturn(Optional.of(project));
+        doNothing().when(statusTransitionValidator).validate(any(), any());
         when(repository.save(any(Project.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ProjectResponse response = service.updateStatus(projectId, ProjectStatus.EM_ANALISE);
 
         assertEquals(ProjectStatus.EM_ANALISE, response.status());
+        verify(statusTransitionValidator, times(1)).validate(any(), any());
         verify(repository, times(1)).save(any(Project.class));
     }
 
@@ -175,8 +197,10 @@ class ProjectServiceTest {
     void updateStatus_ShouldThrowExceptionOnInvalidTransition() {
         project.setStatus(ProjectStatus.ENCERRADO);
         when(repository.findById(projectId)).thenReturn(Optional.of(project));
+        doThrow(new BusinessRuleException("Invalid transition")).when(statusTransitionValidator).validate(any(), any());
 
         assertThrows(BusinessRuleException.class, () -> service.updateStatus(projectId, ProjectStatus.EM_ANDAMENTO));
+        verify(statusTransitionValidator, times(1)).validate(any(), any());
         verify(repository, never()).save(any(Project.class));
     }
 
@@ -186,20 +210,22 @@ class ProjectServiceTest {
         project.setStatus(ProjectStatus.EM_ANALISE);
         project.setDeleted(false);
         when(repository.findById(projectId)).thenReturn(Optional.of(project));
+        doNothing().when(deletionValidator).validate(any());
 
         service.delete(projectId);
 
         assertTrue(project.isDeleted());
+        verify(deletionValidator, times(1)).validate(any());
         verify(repository, times(1)).save(project);
     }
 
     @Test
-    @DisplayName("Delete: Should throw BusinessRuleException when already deleted")
+    @DisplayName("Delete: Should throw ResourceNotFoundException when already deleted")
     void delete_ShouldThrowExceptionWhenAlreadyDeleted() {
         project.setDeleted(true);
         when(repository.findById(projectId)).thenReturn(Optional.of(project));
 
-        assertThrows(BusinessRuleException.class, () -> service.delete(projectId));
+        assertThrows(ResourceNotFoundException.class, () -> service.delete(projectId));
         verify(repository, never()).save(any(Project.class));
     }
 
@@ -208,8 +234,10 @@ class ProjectServiceTest {
     void delete_ShouldThrowExceptionWhenStatusBlocksDeletion() {
         project.setStatus(ProjectStatus.INICIADO);
         when(repository.findById(projectId)).thenReturn(Optional.of(project));
+        doThrow(new BusinessRuleException("Deletion blocked")).when(deletionValidator).validate(any());
 
         assertThrows(BusinessRuleException.class, () -> service.delete(projectId));
+        verify(deletionValidator, times(1)).validate(any());
         verify(repository, never()).save(any(Project.class));
     }
 
