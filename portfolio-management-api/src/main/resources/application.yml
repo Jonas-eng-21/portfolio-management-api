@@ -18,5 +18,14 @@ spring:
   application:
     name: portfolio-management-api
 
+api:
+   security:
+     admin:
+       username: ${API_ADMIN_USERNAME}
+       password: ${API_ADMIN_PASSWORD}
+
+   member:
+     url: ${API_MEMBER_URL}
+
 server:
   port: 8080

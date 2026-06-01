@@ -18,5 +18,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  wiremock:
+    image: wiremock/wiremock:latest
+    container_name: portfolio-wiremock
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./wiremock:/home/wiremock
+
 volumes:
   postgres_data:

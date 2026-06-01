@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/members/2"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "id": 2,
+      "name": "Maria Souza (Mockada)",
+      "role": "GERENTE"
+    }
+  }
+}

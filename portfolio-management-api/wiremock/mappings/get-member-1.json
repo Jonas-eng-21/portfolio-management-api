@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/members/1"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "id": 1,
+      "name": "João Silva (Mockado)",
+      "role": "FUNCIONARIO"
+    }
+  }
+}
