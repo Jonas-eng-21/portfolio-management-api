@@ -4,7 +4,6 @@
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.14-green?logo=springboot)](https://spring.io/projects/spring-boot)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue?logo=postgresql)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Enabled-blue?logo=docker)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
 ## 1. Sobre o Projeto
 Esta é uma solução executiva para o gerenciamento de portfólio de projetos, desenvolvida como parte de um desafio técnico para a vaga de Desenvolvedor(a) Fullstack Java Pleno/Sênior. A **Portfolio Management API** foi construída utilizando o ecossistema **Spring Boot 3**, focando na robustez de APIs REST, arquitetura MVC limpa, alta qualidade de código e integração entre sistemas.
@@ -32,14 +31,14 @@ Abaixo, a representação visual do fluxo de dados e da organização arquitetur
           │
           ▼ (JSON)
 ┌────────────────────────────────────────────────────────────┐
-│ 🌐 API LAYER (br.com.jonassoares.portfolio.api)            │
+│   API LAYER (br.com.jonassoares.portfolio.api)             │
 │   ├─ Controllers (Endpoints REST, HTTP Status)             │
 │   └─ DTOs (Data Transfer Objects, Java Records)            │
 └────────────────────────┬─────────────────────────┬─────────┘
                          │ (DTOs)                  │
                          ▼                         │
 ┌──────────────────────────────────────────────┐   │
-│ ⚙️ DOMAIN LAYER (...portfolio.domain)        │   │
+│   DOMAIN LAYER (...portfolio.domain)         │   │
 │   ├─ Services (Orquestração de negócio)      │   │ (Throws Exceptions)
 │   ├─ Validators (Regras isoladas/SOLID)      │   │
 │   ├─ Enums (Máquinas de estado/Domínio)      │   │
@@ -47,21 +46,21 @@ Abaixo, a representação visual do fluxo de dados e da organização arquitetur
 └─────────┬────────────────────────────┬───────┘   │
           │                            │           ▼
           │ (Entities)                 │ ┌─────────────────────────┐
-          ▼                            │ │ 🛡️ EXCEPTION HANDLING │
+          ▼                            │ │   EXCEPTION HANDLING    │
 ┌──────────────────────────────────┐   │ │   GlobalExceptionHandler│
-│ 💾 REPOSITORY LAYER              │   │ │   (RFC 7807)            │
+│   REPOSITORY LAYER               │   │ │   (RFC 7807)            │
 │ (...portfolio.domain.repositories│   │ └─────────────────────────┘
 │   └─ Spring Data JPA / Spec      │   │
 └─────────────────┬────────────────┘   │
                   │                    ▼
                   │       ┌──────────────────────────────────┐
-                  │       │ 🔌 INFRASTRUCTURE LAYER          │
+                  │       │   INFRASTRUCTURE LAYER           │
                   │       │ (...portfolio.infrastructure)    │
                   ▼       │   └─ MemberApiClient (RestClient)│
-        [(🐘 PostgreSQL)]  └────────────────┬─────────────────┘
+        [(  PostgreSQL)]  └────────────────┬─────────────────┘
                                             │
                                             ▼
-                                   [(🤖 WireMock API)]
+                                   [(  WireMock API)]
 ```
 
 ### Detalhamento das Camadas
