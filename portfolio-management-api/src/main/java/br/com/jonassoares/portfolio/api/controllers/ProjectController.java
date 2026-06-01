@@ -6,10 +6,11 @@ import br.com.jonassoares.portfolio.api.dtos.ProjectStatusRequest;
 import br.com.jonassoares.portfolio.domain.enums.ProjectStatus;
 import br.com.jonassoares.portfolio.domain.enums.RiskLevel;
 import br.com.jonassoares.portfolio.domain.services.ProjectService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -17,6 +18,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.net.URI;
 import java.util.UUID;
 
+@SecurityRequirement(name = "basicScheme")
 @RestController
 @RequestMapping("/projects")
 public class ProjectController {
@@ -52,7 +54,7 @@ public class ProjectController {
 			@RequestParam(required = false) ProjectStatus status,
 			@RequestParam(required = false) Long managerId,
 			@RequestParam(required = false) RiskLevel riskLevel,
-			@PageableDefault(size = 10, sort = "name") Pageable pageable) {
+			@ParameterObject Pageable pageable) {
 		
 		Page<ProjectResponse> responses = projectService.findAll(name, status, managerId, riskLevel, pageable);
 		return ResponseEntity.ok(responses);
